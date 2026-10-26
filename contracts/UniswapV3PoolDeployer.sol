@@ -38,7 +38,10 @@ contract UniswapV3PoolDeployer is IUniswapV3PoolDeployer {
         // 无参构造让所有池的 init code 相同，hash 是常量（periphery 的 PoolAddress.POOL_INIT_CODE_HASH）。
         // 池子身份只放进 salt = keccak256(abi.encode(token0, token1, fee))；factory 已是 CREATE2 的 deployer，
         // tickSpacing 由 factory 按 fee 决定，两者都不必进 salt。
-        // SwapRouter 等因此不用持有池子的 creation bytecode（二十多 KB），用一个 bytes32 就能算出池地址。
+        // 推测地址除了 salt，还要 init code。公式里用的是 keccak256(initCode)，不是 bytecode 本身。
+        // 无参构造时 initCode 就是 creation bytecode，每个池都一样，所以这个 hash 可以事先算好，存成 bytes32。
+        // SwapRouter 等因此不用在链上持有二十多 KB 的 creation bytecode，拿 PoolAddress.POOL_INIT_CODE_HASH 就能算地址。
+        // 若构造函数带参数，init code 每个池都不同，链上就必须带上整段 bytecode，再和 abi.encode(args) 拼起来哈希。
         //
         // 这些字段在池子 UniswapV3Pool 里是 immutable，只能在构造函数里赋值，热路径读取也比 SLOAD 便宜。
         // 若部署后再调 public initialize() 写入它们(Parameters)：immutable 写不了，只能改 storage；
